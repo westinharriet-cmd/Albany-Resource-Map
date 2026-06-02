@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Albany Community Resource Map | Multilingual Support</title>
+  <!-- Google Fonts: Fraunces + DM Sans + full Noto coverage -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=DM+Sans:wght@400;500&family=Noto+Sans+Myanmar:wght@400;500&family=Noto+Sans+Kayah+Li:wght@400;500&family=Noto+Naskh+Arabic:wght@400;500&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f6f6f4;
+      --color-text-primary: #1a1e24;
+      --color-text-secondary: #5b5f66;
+      --color-border-primary: #d0d2d6;
+      --color-border-secondary: #e2e4e8;
+      --color-border-tertiary: #eceef2;
+      --border-radius-lg: 20px;
+    }
+
+    body {
+      background: #f9fafb;
+      padding: 1rem;
+      font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #mr {
+      max-width: 1280px;
+      margin: 0 auto;
+      background: var(--color-background-primary);
+      border-radius: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.03);
+      padding: 1.25rem 1.5rem 2rem 1.5rem;
+    }
+
+    /* base font fallback per language — ensures all scripts appear correctly */
+    #mr.lang-en,
+    #mr.lang-es {
+      font-family: 'DM Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    #mr.lang-my {
+      font-family: 'Noto Sans Myanmar', 'Myanmar Text', 'Padauk', 'Pyidaungsu', 'DM Sans', sans-serif;
+    }
+    #mr.lang-kar {
+      font-family: 'Noto Sans Kayah Li', 'Kayah Li', 'Noto Sans Myanmar', 'DM Sans', sans-serif;
+    }
+    #mr.lang-ar {
+      font-family: 'Noto Naskh Arabic', 'Amiri', 'Scheherazade New', 'DM Sans', sans-serif;
+    }
+    #mr.lang-ur {
+      font-family: 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Jameel Noori Nastaleeq', 'DM Sans', sans-serif;
+    }
+
+    /* ensure all text elements inherit the correct font from parent */
+    #mr * {
+      font-family: inherit;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+
+    /* language bar */
+    .lang-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+      align-items: center;
+      border-bottom: 0.5px solid var(--color-border-tertiary);
+      padding-bottom: 0.85rem;
+    }
+    .lang-lbl {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-right: 6px;
+      letter-spacing: 0.02em;
+    }
+    .lang-btn {
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-primary);
+      color: var(--color-text-primary);
+      cursor: pointer;
+      line-height: 1.4;
+      transition: all 0.15s ease;
+      font-weight: 500;
+    }
+    .lang-btn.active {
+      background: #1D9E75;
+      color: white;
+      border-color: #1D9E75;
+      box-shadow: 0 1px 3px rgba(29, 158, 117, 0.2);
+    }
+    /* explicit language-specific button fonts for readability */
+    .lang-btn[data-lang="my"] { font-family: 'Noto Sans Myanmar', monospace; }
+    .lang-btn[data-lang="kar"] { font-family: 'Noto Sans Kayah Li', monospace; }
+    .lang-btn[data-lang="ar"] { font-family: 'Noto Naskh Arabic', serif; }
+    .lang-btn[data-lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; }
+
+    /* filter row */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .filter-btn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      padding: 6px 15px;
+      border-radius: 999px;
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-primary);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.12s, color 0.12s;
+      font-weight: 500;
+    }
+    .filter-btn.active {
+      color: var(--color-text-primary);
+      background: var(--color-background-secondary);
+      border-color: var(--color-border-primary);
+      font-weight: 500;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* map container */
+    #map {
+      width: 100%;
+      height: 420px;
+      border-radius: 24px;
+      border: 1px solid var(--color-border-tertiary);
+      overflow: hidden;
+      background: #fefef8;
+      z-index: 1;
+    }
+
+    /* legend */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 0.5px solid var(--color-border-tertiary);
+      font-size: 11px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .bus-badge {
+      display: inline-block;
+      background: #1a56a0;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin: 0 1px;
+      font-family: 'DM Sans', monospace;
+      letter-spacing: 0.3px;
+    }
+
+    /* popup styling overrides (leaflet compatibility) */
+    .leaflet-popup-content-wrapper {
+      border-radius: 16px;
+      padding: 2px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .popup-name {
+      font-family: 'Fraunces', serif;
+      font-weight: 500;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .popup-cat {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .popup-body {
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .popup-note {
+      font-size: 11px;
+      color: #5e6b7c;
+      margin-top: 6px;
+      padding-top: 4px;
+      border-top: 0.5px dashed #e9ecef;
+      font-style: normal;
+    }
+
+    /* RTL adjustments for Arabic / Urdu */
+    [dir="rtl"] .lang-bar,
+    [dir="rtl"] .filters,
+    [dir="rtl"] .legend {
+      justify-content: flex-start;
+      flex-direction: row;
+    }
+    @media (max-width: 640px) {
+      #mr { padding: 1rem; }
+      .lang-btn { padding: 4px 12px; font-size: 11px; }
+      .filter-btn { padding: 4px 12px; font-size: 11px; }
+      #map { height: 360px; }
+    }
+  </style>
+</head>
+<body>
+<div id="mr">
+  <h2 class="sr-only">Albany community resource map with multilingual support — food, shelter, clinic, support, immigrant services</h2>
+
+  <div class="lang-bar">
+    <span class="lang-lbl">language / idioma / ဘာသာစကား / لغة</span>
+    <button class="lang-btn active" data-lang="en">English</button>
+    <button class="lang-btn" data-lang="es">Español</button>
+    <button class="lang-btn" data-lang="my">မြန်မာ</button>
+    <button class="lang-btn" data-lang="kar">Karen</button>
+    <button class="lang-btn" data-lang="ar">العربية</button>
+    <button class="lang-btn" data-lang="ur">اردو</button>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-cat="all"><span class="dot" style="background:#888780"></span><span class="t-all">All resources</span></button>
+    <button class="filter-btn" data-cat="food"><span class="dot" style="background:#1D9E75"></span><span class="t-food">Food</span></button>
+    <button class="filter-btn" data-cat="shelter"><span class="dot" style="background:#378ADD"></span><span class="t-shelter">Shelter</span></button>
+    <button class="filter-btn" data-cat="clinic"><span class="dot" style="background:#D4537E"></span><span class="t-clinic">Clinic</span></button>
+    <button class="filter-btn" data-cat="support"><span class="dot" style="background:#BA7517"></span><span class="t-support">Support</span></button>
+    <button class="filter-btn" data-cat="immigrant"><span class="dot" style="background:#7F77DD"></span><span class="t-immigrant">Immigrant & Refugee</span></button>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="dot" style="background:#1D9E75"></span><span class="t-food">Food</span></div>
+    <div class="legend-item"><span class="dot" style="background:#378ADD"></span><span class="t-shelter">Shelter</span></div>
+    <div class="legend-item"><span class="dot" style="background:#D4537E"></span><span class="t-clinic">Clinic</span></div>
+    <div class="legend-item"><span class="dot" style="background:#BA7517"></span><span class="t-support">Support</span></div>
+    <div class="legend-item"><span class="dot" style="background:#7F77DD"></span><span class="t-immigrant">Immigrant & Refugee</span></div>
+    <div class="legend-item"><span class="bus-badge">CDTA</span><span>bus routes</span></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // ======================= MULTILINGUAL TEXT DICTIONARY =======================
+  const T = {
+    en: { all:"All resources", food:"Food", shelter:"Shelter", clinic:"Clinic", support:"Support", immigrant:"Immigrant & Refugee", address:"Address", hours:"Hours", phone:"Phone", bus:"Bus", services:"Services" },
+    es: { all:"Todos los recursos", food:"Alimentos", shelter:"Refugio", clinic:"Clínica", support:"Apoyo", immigrant:"Inmigrante y refugiado", address:"Dirección", hours:"Horario", phone:"Teléfono", bus:"Autobús", services:"Servicios" },
+    my: { all:"အားလုံး", food:"အစားအစာ", shelter:"တည်းခိုရာ", clinic:"ဆေးခန်း", support:"အကူအညီ", immigrant:"ရွှေ့ပြောင်းနှင့် ဒုက္ခသည်", address:"လိပ်စာ", hours:"ဖွင့်ချိန်", phone:"ဖုန်း", bus:"ဘတ်စ်ကား", services:"ဝန်ဆောင်မှုများ" },
+    kar: { all:"ခဲလဲၢ်", food:"ဟံၣ်ဝဲၤ", shelter:"လီၤဆီ", clinic:"ကဆှဲကဆှဲ", support:"မၤစၢၤ", immigrant:"ပှၤကိၢ်မၤကိၢ်ဒိးနှၤဘၢ", address:"လီၢ်ခံ", hours:"ဆၢကတီၢ်", phone:"ဂီၤမူၤ", bus:"ကွဲးဘျီ", services:"တၢ်မၤစၢၤ" },
+    ar: { all:"الكل", food:"طعام", shelter:"مأوى", clinic:"عيادة", support:"دعم", immigrant:"مهاجر ولاجئ", address:"العنوان", hours:"ساعات العمل", phone:"الهاتف", bus:"حافلة", services:"الخدمات" },
+    ur: { all:"تمام وسائل", food:"کھانا", shelter:"پناہ گاہ", clinic:"کلینک", support:"معاونت", immigrant:"تارکین وطن و مہاجر", address:"پتہ", hours:"اوقات", phone:"فون", bus:"بس", services:"خدمات" }
+  };
+
+  // Color mapping for categories
+  const colors = { food:"#1D9E75", shelter:"#378ADD", clinic:"#D4537E", support:"#BA7517", immigrant:"#7F77DD" };
+
+  // Full resources dataset (as originally, but we ensure all fields are present)
+  const resources = [
+    { id:0,  name:"Albany Community Food Bank",              cat:"food",      lat:42.6526, lng:-73.7562, address:"340 S Pearl St",         hours:"Mon–Fri 9am–4pm",        phone:"(518) 449-3132", bus:["106","107","801"], note:"" },
+    { id:1,  name:"Trinity Alliance Food Pantry",            cat:"food",      lat:42.6580, lng:-73.7680, address:"15 Trinity Pl",           hours:"Tue & Thu 10am–1pm",     phone:"(518) 434-5995", bus:["114"], note:"" },
+    { id:2,  name:"St. John's Soup Kitchen",                 cat:"food",      lat:42.6510, lng:-73.7530, address:"112 Spring St",           hours:"Daily 11:30am–12:30pm",  phone:"(518) 463-3751", bus:["106","107"], note:"" },
+    { id:3,  name:"Capital City Rescue Mission",             cat:"shelter",   lat:42.6494, lng:-73.7499, address:"259 S Pearl St",          hours:"Open 24 hours",          phone:"(518) 462-0459", bus:["106","107","801"], note:"" },
+    { id:4,  name:"Interfaith Partnership for the Homeless", cat:"shelter",   lat:42.6620, lng:-73.7740, address:"870 Madison Ave",         hours:"Check in 6pm daily",     phone:"(518) 434-4200", bus:["114"], note:"" },
+    { id:5,  name:"Joseph's House & Shelter",                cat:"shelter",   lat:42.6540, lng:-73.7610, address:"20 Elk St",               hours:"Open daily",             phone:"(518) 463-5490", bus:["12","106"], note:"" },
+    { id:6,  name:"Albany County Dept. of Mental Health",    cat:"clinic",    lat:42.6597, lng:-73.7495, address:"175 Green St",            hours:"Mon–Fri 8am–5pm",        phone:"(518) 447-4570", bus:["12","106"], note:"" },
+    { id:7,  name:"Community Health Center of Albany",       cat:"clinic",    lat:42.6710, lng:-73.7650, address:"727 Madison Ave",         hours:"Mon–Sat 8am–6pm",        phone:"(518) 434-4200", bus:["114"], note:"" },
+    { id:8,  name:"Whitney Young Health Center",             cat:"clinic",    lat:42.6660, lng:-73.7580, address:"461 Hudson Ave",          hours:"Mon–Fri 8am–5pm",        phone:"(518) 465-4771", bus:["114","106"], note:"Multilingual staff" },
+    { id:9,  name:"Catholic Charities of Albany",            cat:"support",   lat:42.6555, lng:-73.7600, address:"40 N Main Ave",           hours:"Mon–Fri 9am–5pm",        phone:"(518) 453-6650", bus:["12","106"], note:"" },
+    { id:10, name:"Citizen Advocates",                       cat:"support",   lat:42.6640, lng:-73.7800, address:"301 Washington Ave",      hours:"Mon–Fri 8:30am–4:30pm",  phone:"(518) 483-2261", bus:["12"], note:"" },
+    { id:11, name:"Capital Area New Americans (CANA)",       cat:"immigrant", lat:42.6538, lng:-73.7720, address:"255 Orange St",           hours:"Mon–Fri 9am–5pm",        phone:"(518) 459-2619", bus:["114"], note:"Resettlement, ESL, job placement" },
+    { id:12, name:"Legal Aid Society – Immigration",         cat:"immigrant", lat:42.6502, lng:-73.7538, address:"55 Colvin Ave",           hours:"Mon–Fri 9am–5pm",        phone:"(518) 462-6765", bus:["106","107"], note:"Free immigration legal services" },
+    { id:13, name:"USCRI Albany",                            cat:"immigrant", lat:42.6575, lng:-73.7830, address:"1510 Central Ave",        hours:"Mon–Fri 9am–5pm",        phone:"(518) 459-1790", bus:["1"],  note:"Arabic, Burmese, Dari, Karen, Pashto, Spanish, Urdu" },
+    { id:14, name:"RISSE",                                   cat:"immigrant", lat:42.6648, lng:-73.7900, address:"240 W Lawrence St",       hours:"Mon–Fri 10am–4pm",       phone:"(518) 465-1730", bus:["114"], note:"ESL, youth programs, case management" },
+    { id:15, name:"African Alliance of the Capital Region",  cat:"immigrant", lat:42.6615, lng:-73.7555, address:"200 Henry Johnson Blvd",  hours:"Mon–Fri 10am–4pm",       phone:"(518) 465-1730", bus:["106"], note:"Support for African immigrant communities" },
+    { id:16, name:"Albany Asylum Clinic (Immigrant ARC)",    cat:"immigrant", lat:42.6530, lng:-73.7660, address:"112 State St",           hours:"Fridays – check schedule",phone:"(800) 555-0199",bus:["12","106"], note:"Spanish, French, Haitian Creole, Russian, Arabic" },
+    { id:17, name:"NYS Office for New Americans",            cat:"immigrant", lat:42.6573, lng:-73.7701, address:"Executive Blvd",          hours:"Mon–Fri 9am–5pm",        phone:"1-800-566-7636", bus:["12"], note:"200+ languages hotline, DACA, IDNYC" },
+    { id:18, name:"Albany City School – ENL & Refugee Svcs", cat:"immigrant", lat:42.6720, lng:-73.7820, address:"75 Watervliet Ave",      hours:"Mon–Fri 8am–4pm",        phone:"(518) 475-6147", bus:["22"], note:"English as New Language, refugee youth" },
+    { id:19, name:"Regional Immigration Assistance Center",  cat:"immigrant", lat:42.6560, lng:-73.7490, address:"Albany, NY",             hours:"Mon–Fri 9am–5pm",        phone:"(518) 447-4890", bus:["12","106"], note:"Dari & Pashto crisis line: (800) 615-6514" }
+  ];
+
+  // Map state
+  let currentLang = "en";
+  let currentCat = "all";
+  const markerMap = new Map();  // id -> leaflet marker
+  let leafletMap = null;
+
+  // helper: custom icon based on category
+  function makeIcon(cat) {
+    return L.divIcon({
+      className: "custom-marker-icon",
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:${colors[cat]};border:2.5px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.25);transition:transform 0.1s;"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+      popupAnchor: [0, -9]
+    });
+  }
+
+  // Build popup HTML with full translation, bus badges and note
+  function buildPopupContent(resource, lang) {
+    const t = T[lang] || T.en;
+    const rtl = (lang === "ar" || lang === "ur");
+    const fontFamily = getComputedFontForLang(lang);
+    const catLabel = t[resource.cat] || resource.cat;
+    const busHtml = resource.bus && resource.bus.length
+      ? resource.bus.map(route => `<span class="bus-badge" style="background:#1a56a0;margin-right:3px;">${route}</span>`).join("")
+      : "—";
+    
+    const servicesNote = resource.note && resource.note.length > 0
+      ? `<div class="popup-note"><strong>${t.services}:</strong> ${resource.note}</div>`
+      : "";
+    
+    return `<div dir="${rtl ? "rtl" : "ltr"}" style="font-family:${fontFamily};max-width:260px;min-width:210px;">
+      <div class="popup-name" style="font-weight:600;">${escapeHtml(resource.name)}</div>
+      <div class="popup-cat" style="color:${colors[resource.cat]}">${escapeHtml(catLabel)}</div>
+      <div class="popup-body">
+        <strong>${t.address}:</strong> ${escapeHtml(resource.address)}<br>
+        <strong>${t.hours}:</strong> ${escapeHtml(resource.hours)}<br>
+        <strong>${t.phone}:</strong> ${escapeHtml(resource.phone)}
+      </div>
+      <div style="margin-top:8px;"><span style="font-size:11px; font-weight:500; color:#2c3e4f;">${t.bus}:</span> <span style="display:inline-flex;flex-wrap:wrap;gap:4px;">${busHtml}</span></div>
+      ${servicesNote}
+    </div>`;
+  }
+
+  // simple escape to avoid injection
+  function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m) { if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m;}); }
+
+  function getComputedFontForLang(lang) {
+    switch(lang) {
+      case 'my': return "'Noto Sans Myanmar', 'Myanmar Text', 'Padauk', sans-serif";
+      case 'kar': return "'Noto Sans Kayah Li', 'Kayah Li', 'Noto Sans Myanmar', sans-serif";
+      case 'ar': return "'Noto Naskh Arabic', 'Amiri', serif";
+      case 'ur': return "'Noto Nastaliq Urdu', 'Urdu Typesetting', serif";
+      default: return "'DM Sans', 'Segoe UI', Roboto, sans-serif";
+    }
+  }
+
+  // Update existing marker popups without recreating markers
+  function updateAllPopupLanguages() {
+    resources.forEach(res => {
+      const marker = markerMap.get(res.id);
+      if (marker) {
+        const newPopupHtml = buildPopupContent(res, currentLang);
+        marker.setPopupContent(newPopupHtml);
+      }
+    });
+  }
+
+  // filter markers: show/hide based on category
+  function applyFilter(category) {
+    resources.forEach(res => {
+      const marker = markerMap.get(res.id);
+      if (!marker) return;
+      const shouldShow = (category === "all" || res.cat === category);
+      if (shouldShow) {
+        if (!leafletMap.hasLayer(marker)) marker.addTo(leafletMap);
+      } else {
+        if (leafletMap.hasLayer(marker)) leafletMap.removeLayer(marker);
+      }
+    });
+  }
+
+  // Initialize map and markers (once)
+  function initMapAndMarkers() {
+    if (leafletMap) return; // already initialized
+    leafletMap = L.map("map").setView([42.660, -73.768], 12.5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(leafletMap);
+    
+    // create markers for each resource
+    resources.forEach(res => {
+      const marker = L.marker([res.lat, res.lng], { icon: makeIcon(res.cat) });
+      marker.bindPopup(buildPopupContent(res, currentLang), { maxWidth: 280, minWidth: 210 });
+      markerMap.set(res.id, marker);
+    });
+    
+    // apply initial category filter
+    applyFilter(currentCat);
+  }
+
+  // Apply language changes across UI text, direction, and popups
+  function applyLanguage(lang) {
+    const t = T[lang] || T.en;
+    currentLang = lang;
+    
+    // update root direction & lang class for fonts
+    const rootDiv = document.getElementById("mr");
+    if (lang === "ar" || lang === "ur") {
+      rootDiv.setAttribute("dir", "rtl");
+    } else {
+      rootDiv.setAttribute("dir", "ltr");
+    }
+    // set language class: remove all lang-xx and add current
+    const langClasses = ["lang-en", "lang-es", "lang-my", "lang-kar", "lang-ar", "lang-ur"];
+    rootDiv.classList.remove(...langClasses);
+    rootDiv.classList.add(`lang-${lang}`);
+    
+    // update filter button labels and legend labels
+    document.querySelectorAll(".t-all").forEach(el => el.innerText = t.all);
+    document.querySelectorAll(".t-food").forEach(el => el.innerText = t.food);
+    document.querySelectorAll(".t-shelter").forEach(el => el.innerText = t.shelter);
+    document.querySelectorAll(".t-clinic").forEach(el => el.innerText = t.clinic);
+    document.querySelectorAll(".t-support").forEach(el => el.innerText = t.support);
+    document.querySelectorAll(".t-immigrant").forEach(el => el.innerText = t.immigrant);
+    
+    // update popup content of all markers
+    updateAllPopupLanguages();
+  }
+
+  // Fully reload language: also handle active filter buttons text (already done)
+  function setLanguage(lang) {
+    applyLanguage(lang);
+  }
+
+  // initialize map after DOM load
+  document.addEventListener("DOMContentLoaded", () => {
+    initMapAndMarkers();
+    
+    // attach filter event listeners
+    const filterContainer = document.getElementById("filters");
+    filterContainer.addEventListener("click", (e) => {
+      const btn = e.target.closest(".filter-btn");
+      if (!btn) return;
+      const cat = btn.getAttribute("data-cat");
+      if (!cat) return;
+      // update active class
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentCat = cat;
+      applyFilter(currentCat);
+    });
+    
+    // language switcher
+    const langBar = document.querySelector(".lang-bar");
+    langBar.addEventListener("click", (e) => {
+      const btn = e.target.closest(".lang-btn");
+      if (!btn) return;
+      const lang = btn.getAttribute("data-lang");
+      if (!lang) return;
+      document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      setLanguage(lang);
+    });
+    
+    // initial font + direction sanity: set english as default but ensure lang class
+    const defaultLang = "en";
+    document.getElementById("mr").classList.add("lang-en");
+    setLanguage(defaultLang);
+    // after map ready, force popup language sync again
+    setTimeout(() => {
+      if (leafletMap) updateAllPopupLanguages();
+    }, 20);
+  });
+</script>
+</body>
+</html>
